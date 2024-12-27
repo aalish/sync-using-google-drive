@@ -108,8 +108,23 @@ def download_file(file_name, drive_file):
 
 
 def create_backup():
-    """Create a zip backup of all configured files and upload to Google Drive."""
+    """Create a zip backup of all configured files and upload to Google Drive if the last backup is older than the interval."""
     now = datetime.now()
+    backup_files_in_drive = list_files_in_drive(BACKUP_FOLDER_ID)
+
+    # Find the most recent backup file
+    recent_backup = None
+    for file in backup_files_in_drive:
+        modified_time = datetime.strptime(file['modifiedTime'], '%Y-%m-%dT%H:%M:%S.%fZ')
+        if not recent_backup or modified_time > datetime.strptime(recent_backup['modifiedTime'], '%Y-%m-%dT%H:%M:%S.%fZ'):
+            recent_backup = file
+
+    if recent_backup:
+        recent_backup_time = datetime.strptime(recent_backup['modifiedTime'], '%Y-%m-%dT%H:%M:%S.%fZ')
+        if now - recent_backup_time < timedelta(days=BACKUP_INTERVAL_DAYS):
+            logging.info(f"Skipping backup: Last backup {recent_backup_time} is within the interval.")
+            return
+
     backup_file_name = f"backup_{now.strftime('%Y%m%d_%H%M%S')}.zip"
     local_backup_path = os.path.join("/tmp", backup_file_name)
 
@@ -117,15 +132,17 @@ def create_backup():
         config = load_config()
         files_to_backup = config['file_mappings'].values()
 
+        # Create a zip file for backup
         with zipfile.ZipFile(local_backup_path, 'w') as backup_zip:
             for file_path in files_to_backup:
                 if os.path.exists(file_path):
                     backup_zip.write(file_path, os.path.basename(file_path))
         logging.info(f"Backup created locally: {local_backup_path}")
 
-        backup_files_in_drive = list_files_in_drive(BACKUP_FOLDER_ID)
+        # Upload the backup to Google Drive
         upload_file(local_backup_path, backup_files_in_drive, BACKUP_FOLDER_ID)
 
+        # Remove the local backup file after upload
         os.remove(local_backup_path)
         logging.info("Local backup file deleted after upload.")
     except Exception as e:
