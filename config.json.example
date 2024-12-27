@@ -1,0 +1,8 @@
+{
+    "folder_id": "your-google-drive-folder-id", 
+    "file_mappings": {
+        "file1.txt": "C:/path/to/local/file1.txt",
+        "file2.docx": "C:/path/to/local/file2.docx",
+        "file3.pdf": "C:/path/to/local/file3.pdf"
+    }
+}
